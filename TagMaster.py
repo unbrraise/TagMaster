@@ -535,9 +535,10 @@ main{padding:22px 28px 60px}
 .empty{color:var(--dim);padding:60px 0;text-align:center;font-size:13px}
 .badges{display:none;flex-wrap:wrap;gap:6px;margin-top:10px}
 .badges.show{display:flex}
-.badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,196,81,.10);border:1px solid rgba(245,196,81,.45);color:var(--accent);padding:3px 9px;border-radius:6px;font-size:11.5px}
-.badge i{font-style:normal;cursor:pointer;opacity:.65;font-size:12px;padding:0 1px}
-.badge i:hover{opacity:1;color:#fff}
+/* 注意：类名不能叫 .badge —— 卡片缩略图角标已有 .badge{position:absolute}，会把这排徽章顶到页角 */
+.fbdg{display:inline-flex;align-items:center;gap:5px;background:rgba(245,196,81,.10);border:1px solid rgba(245,196,81,.45);color:var(--accent);padding:3px 9px;border-radius:6px;font-size:11.5px}
+.fbdg i{font-style:normal;cursor:pointer;opacity:.65;font-size:12px;padding:0 1px}
+.fbdg i:hover{opacity:1;color:#fff}
 </style></head><body>
 <header>
   <h1>素材库 · 标签浏览 <span>点卡片直接播放原片</span></h1>
@@ -622,7 +623,7 @@ function syncBadges() {
   const out = [];
   for (const [label] of Object.entries(KEYMAP)) {
     for (const v of state[label]) {
-      out.push('<span class="badge"><b>' + esc(label) + '</b>' + esc(v) +
+      out.push('<span class="fbdg"><b>' + esc(label) + '</b>' + esc(v) +
                '<i data-g="' + esc(label) + '" data-v="' + esc(v) + '">✕</i></span>');
     }
   }
