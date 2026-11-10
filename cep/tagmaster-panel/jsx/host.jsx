@@ -148,7 +148,9 @@
         if (dot < 0) continue;
         var ext = String(f.name).substr(dot + 1).toLowerCase();
         if (VIDEO_EXTS.indexOf('|' + ext + '|') < 0) continue;
-        items.push({name: f.name, path: f.fsName});
+        var nm = String(f.name);
+        try { nm = decodeURIComponent(nm); } catch (e) {}  // ExtendScript 的 name 是 URI 编码名，解码回中文
+        items.push({name: nm, path: f.fsName});
       }
       items.sort(function (a, b) {
         return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);

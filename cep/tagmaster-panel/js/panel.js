@@ -33,6 +33,12 @@
   }
 
   // ---- 视频预览 ----
+  function setSpeed(r, btn) {
+    pvEl.playbackRate = r;
+    document.querySelectorAll('.spd').forEach(function (b) {
+      b.classList.toggle('on', b === btn);
+    });
+  }
   function preview(path, name) {
     if (selPath === path) return;
     selPath = path;
@@ -169,6 +175,9 @@
     $('load').onclick = function () { loadDir(dirEl.value); };
     dirEl.onkeydown = function (e) { if (e.key === 'Enter') loadDir(dirEl.value); };
     qEl.oninput = renderList;
+    document.querySelectorAll('.spd').forEach(function (b) {
+      b.onclick = function () { setSpeed(parseFloat(b.dataset.r), b); };
+    });
     $('all').onclick = function () {
       filtered().forEach(function (f) { picked[f.path] = f; });
       renderList(); updateCount();

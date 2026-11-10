@@ -6,43 +6,57 @@
   <style>
     html, body {
       margin: 0; height: 100%;
-      background: #12161c; color: #e6ebf2;
+      background: #0f1216; color: #e6ebf2;
       font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
-      font-size: 12px; overflow: hidden;
+      font-size: 13px; overflow: hidden;
     }
-    .wrap { padding: 10px; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; }
-    .title { font-size: 13px; font-weight: 600; color: #f5c451; flex: none; }
-    .row { display: flex; align-items: center; gap: 6px; flex: none; }
+    .wrap { padding: 12px; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 9px; }
+    .title { font-size: 14px; font-weight: 600; color: #f5c451; flex: none; letter-spacing: .3px; }
+    .row { display: flex; align-items: center; gap: 7px; flex: none; }
     input[type=text] {
       flex: 1; min-width: 0; background: #1d232c; border: 1px solid #2a323d;
-      color: #e6ebf2; padding: 5px 8px; border-radius: 6px; outline: none; font-size: 12px;
+      color: #e6ebf2; padding: 7px 10px; border-radius: 8px; outline: none; font-size: 13px;
     }
     input[type=text]:focus { border-color: #f5c451; }
     button {
-      background: #1d232c; border: 1px solid #2a323d; color: #e6ebf2;
-      padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; flex: none;
+      background: #1d232c; border: 1px solid #2a323d; color: #d7dee8;
+      padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 12.5px; flex: none;
+      transition: .12s;
     }
     button:hover { border-color: #f5c451; color: #f5c451; }
-    button.primary { background: #f5c451; border-color: #f5c451; color: #1a1408; font-weight: 600; }
+    button.primary { background: #f5c451; border-color: #f5c451; color: #1a1408; font-weight: 700; }
     button.primary:hover { background: #ffd877; }
     button:disabled { opacity: .45; cursor: not-allowed; }
-    .main { flex: 1; display: flex; gap: 8px; min-height: 0; }
-    #list { flex: 1.2; overflow-y: auto; background: #171c24; border: 1px solid #2a323d; border-radius: 8px; min-height: 60px; }
-    .item { display: flex; align-items: center; gap: 7px; padding: 5px 8px; cursor: pointer; border-bottom: 1px solid #1f2630; }
-    .item:hover { background: #1d232c; }
-    .item.sel { background: #2a2f3a; }
-    .item input { flex: none; pointer-events: none; }
+    input[type=checkbox] { accent-color: #f5c451; width: 15px; height: 15px; cursor: pointer; flex: none; }
+    .main { flex: 1; display: flex; gap: 10px; min-height: 0; }
+    #list {
+      flex: 1.25; overflow-y: auto; background: #171c24; border: 1px solid #2a323d;
+      border-radius: 10px; min-height: 60px;
+    }
+    #list::-webkit-scrollbar { width: 9px; }
+    #list::-webkit-scrollbar-thumb { background: #2e3844; border-radius: 5px; }
+    #list::-webkit-scrollbar-thumb:hover { background: #3a4756; }
+    .item {
+      display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+      cursor: pointer; border-bottom: 1px solid #1c222b; transition: background .1s;
+    }
+    .item:hover { background: #1f2630; }
+    .item.sel { background: #26303e; }
     .item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .prev { flex: 1; display: flex; flex-direction: column; background: #000; border: 1px solid #2a323d; border-radius: 8px; min-width: 0; }
+    .prev { flex: 1; display: flex; flex-direction: column; background: #000; border: 1px solid #2a323d; border-radius: 10px; min-width: 0; overflow: hidden; }
     .prev video { flex: 1; width: 100%; min-height: 0; object-fit: contain; background: #000; }
     .prev .ph { flex: 1; display: flex; align-items: center; justify-content: center; color: #5f6b7d; }
-    .prev .pvname { padding: 5px 8px; color: #9ca3af; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid #2a323d; }
-    .rowbtns { display: flex; gap: 6px; flex: none; }
-    .stat { display: flex; align-items: center; gap: 6px; color: #9ca3af; flex: none; }
+    .pvbar { display: flex; align-items: center; gap: 5px; padding: 6px 8px; border-top: 1px solid #2a323d; flex-wrap: wrap; }
+    .pvname { flex: 1; min-width: 0; color: #9ca3af; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .spd { background: #171c24; border: 1px solid #2a323d; color: #8b95a7; padding: 2px 7px; border-radius: 5px; cursor: pointer; font-size: 11px; }
+    .spd:hover { color: #f5c451; border-color: #f5c451; }
+    .spd.on { background: #f5c451; border-color: #f5c451; color: #1a1408; font-weight: 700; }
+    .rowbtns { display: flex; gap: 7px; flex: none; }
+    .stat { display: flex; align-items: center; gap: 7px; color: #9ca3af; flex: none; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex: 0 0 auto; }
     .dot.err { background: #e8735e; }
     .dot.idle { background: #64748b; }
-    #detail { color: #d1d5db; word-break: break-word; }
+    #detail { color: #c4ccd8; word-break: break-word; }
     .hint { color: #5f6b7d; font-size: 11px; flex: none; line-height: 1.5; }
   </style>
 </head>
@@ -59,8 +73,17 @@
       <div id="list"></div>
       <div class="prev">
         <video id="pv" controls muted playsinline style="display:none"></video>
-        <div class="ph" id="pvp">点列表文件名预览视频</div>
-        <div class="pvname" id="pvn">未选择</div>
+        <div class="ph" id="pvp">点左侧文件名预览视频</div>
+        <div class="pvbar">
+          <span class="pvname" id="pvn">未选择</span>
+          <span id="speeds">
+            <button class="spd" data-r="0.5">0.5×</button>
+            <button class="spd on" data-r="1">1×</button>
+            <button class="spd" data-r="1.5">1.5×</button>
+            <button class="spd" data-r="2">2×</button>
+            <button class="spd" data-r="3">3×</button>
+          </span>
+        </div>
       </div>
     </div>
     <div class="rowbtns">
@@ -70,7 +93,7 @@
     </div>
     <div class="stat"><span id="dot" class="dot idle"></span><span id="status">启动中…</span></div>
     <div id="detail">也可以在 TagMaster 里点「发送到 Premiere」，这里会自动接收。</div>
-    <div class="hint">点文件名＝预览视频；勾选框＝标记要导入。「浏览」由 TagMaster 弹窗（请保持 TagMaster 开着），直接输入路径也可以。</div>
+    <div class="hint">点文件名＝预览（下方可变速）；勾选框＝标记导入。「浏览」由 TagMaster 弹窗，直接输入路径也可以。</div>
   </div>
   <script src="./js/panel.js"></script>
 </body>
