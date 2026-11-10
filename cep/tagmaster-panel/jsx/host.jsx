@@ -99,12 +99,12 @@
     if (!items || !items.length) return result(false, '没有要导入的片段。', 0);
     var done = 0;
     var errors = [];
-    var bins = {};
+    var bins = {};   // ES3：不能用 Object.keys，汇总 bin 名用 for-in
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
       if (!item || !item.path) { errors.push('缺路径'); continue; }
       var bn = safeBinName(item.bin || DEFAULT_BIN_NAME);
-      bins[bn] = true;
+      bins[bn] = 1;
       var err = importOne(item.path, bn);
       if (err) errors.push(err);
       else done++;
@@ -112,7 +112,8 @@
     if (errors.length) {
       return result(done > 0, '导入 ' + done + ' 个，失败 ' + errors.length + ' 个：' + errors.slice(0, 3).join('；'), done);
     }
-    var where = Object.keys(bins).join('、');
+    var where = '';
+    for (var k in bins) { if (where) where += '、'; where += k; }
     return result(true, '已导入 ' + done + ' 个片段到 bin：' + where + '。', done);
   }
 
@@ -223,29 +224,34 @@
   };
 
   // 面板每秒调用一次；没有命令时返回 idle
-  $.global.TMBridge_lastCommand = '';
   $.global.TM_poll = function () {    var file = File(commandFilePath());
     try {
       if (!file.exists) return result(true, 'idle');
       var text = readText(file);
-      if (!text) { try { file.remove(); } catch (e) {} return result(true, 'empty'); }
-      if (text === $.global.TMBridge_lastCommand) {
+      if (!text || !/\S/.test(text)) {
         try { file.remove(); } catch (e) {}
-        return result(true, 'duplicate');
+        return result(true, 'empty');
+      }
+      // 【先消费，后导入】立刻把命令从队列里拿走：删文件；删不掉（被占用）就把
+      // 内容清空。这样无论后面解析/导入怎么出错、面板怎么重载，同一命令都
+      // 不可能被第二次执行 —— 否则一处运行时错误就会变成无限循环导入。
+      try { file.remove(); } catch (e) {}
+      if (file.exists) {
+        try {
+          file.encoding = 'UTF-8';
+          if (file.open('w')) { file.write(''); file.close(); }
+        } catch (e2) {}
       }
       var parsed = parseCommand(text);
       var command = parsed && parsed.tm_cmd ? parsed.tm_cmd : null;
       if (!command || (command.action !== 'importMany' && command.action !== 'import')) {
-        try { file.remove(); } catch (e) {}
         return result(false, '不支持的命令，已忽略。');
       }
       // 注意：不做「早于面板启动就丢弃」的判断 —— PR 没开时浏览器发来的
-      // 命令也要在打开 PR 后照常执行；文件处理完就删，不会重复导入。
+      // 命令也要在打开 PR 后照常执行；命令文件已在上面的先消费步骤拿走。
       var r;
       if (command.action === 'importMany') r = importMany(command.items);
       else r = importMany([command]);
-      $.global.TMBridge_lastCommand = text;
-      try { file.remove(); } catch (e) {}
       return r;
     } catch (e) {
       try { if (file.opened) file.close(); } catch (e2) {}
