@@ -201,6 +201,7 @@
       if (last) { dirEl.value = last; loadDir(last); }
     } catch (e) {}
 
+    pvEl.playbackRate = 2;  // 默认 2 倍速预览，按钮条可随时切换
     poll();
     window.setInterval(poll, 1000);
   });
