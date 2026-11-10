@@ -533,6 +533,11 @@ main{padding:22px 28px 60px}
 .pick.on::after{content:'';position:absolute;left:7px;top:4px;width:5px;height:9px;border:solid #1a1408;border-width:0 2px 2px 0;transform:rotate(45deg)}
 .card.picked{border-color:var(--accent)}
 .empty{color:var(--dim);padding:60px 0;text-align:center;font-size:13px}
+.badges{display:none;flex-wrap:wrap;gap:6px;margin-top:10px}
+.badges.show{display:flex}
+.badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,196,81,.10);border:1px solid rgba(245,196,81,.45);color:var(--accent);padding:3px 9px;border-radius:6px;font-size:11.5px}
+.badge i{font-style:normal;cursor:pointer;opacity:.65;font-size:12px;padding:0 1px}
+.badge i:hover{opacity:1;color:#fff}
 </style></head><body>
 <header>
   <h1>素材库 · 标签浏览 <span>点卡片直接播放原片</span></h1>
@@ -543,7 +548,9 @@ main{padding:22px 28px 60px}
     <button class="pickbtn" id="onlypicked">只看已选</button>
     <button class="reset" id="clearsel">取消全选</button>
     <button class="reset" id="reset">清空筛选</button>
+    <button class="reset" id="fbtoggle">筛选 ▾</button>
   </div>
+  <div class="badges" id="badges"></div>
   <div class="facets" id="facets"></div>
 </header>
 <main><div class="grid" id="grid"></div></main>
@@ -599,6 +606,39 @@ document.getElementById('clearsel').onclick = () => {
   picked.clear();          // picked 是 Map —— 换成 {} 会把后面的 has/set/values 全弄炸
   render(); updateSel();
 };
+// ---- 筛选区折叠 + 已选徽章：默认只留一行，点「筛选」展开全部标签 ----
+const badgesEl = document.getElementById('badges');
+const fbBtn = document.getElementById('fbtoggle');
+function facetsOpen() { return localStorage.getItem('tm_facets_open') === '1'; }
+function applyFacets() {
+  facetsEl.style.display = facetsOpen() ? '' : 'none';
+  fbBtn.textContent = '筛选 ' + (facetsOpen() ? '▴' : '▾');
+}
+fbBtn.onclick = () => {
+  localStorage.setItem('tm_facets_open', facetsOpen() ? '0' : '1');
+  applyFacets();
+};
+function syncBadges() {
+  const out = [];
+  for (const [label] of Object.entries(KEYMAP)) {
+    for (const v of state[label]) {
+      out.push('<span class="badge"><b>' + esc(label) + '</b>' + esc(v) +
+               '<i data-g="' + esc(label) + '" data-v="' + esc(v) + '">✕</i></span>');
+    }
+  }
+  badgesEl.innerHTML = out.join('');
+  badgesEl.className = 'badges' + (out.length ? ' show' : '');
+}
+badgesEl.onclick = e => {
+  const i = e.target.closest('i');
+  if (!i) return;
+  state[i.dataset.g].delete(i.dataset.v);
+  document.querySelectorAll('.chip.on').forEach(el => {
+    if (el.dataset.group === i.dataset.g && el.dataset.v === i.dataset.v) el.classList.remove('on');
+  });
+  syncBadges(); render();
+};
+applyFacets();
 document.getElementById('onlypicked').onclick = function () {
   onlyPicked = !onlyPicked;
   this.classList.toggle('on', onlyPicked);
@@ -649,6 +689,7 @@ function match(it) {
   return true;
 }
 function render() {
+  syncBadges();
   const list = DATA.items.filter(match); cnt.textContent = list.length;
   if (!list.length) { grid.innerHTML = '<div class="empty">' + (onlyPicked && picked.size ? '已选的片段被当前筛选挡住了 —— 点「只看已选」关掉，或「取消全选」' : '没有符合条件的片段') + '</div>'; return; }
   const frag = document.createDocumentFragment();
