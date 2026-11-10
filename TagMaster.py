@@ -20,7 +20,8 @@ import traceback
 import collections
 import webbrowser
 
-BASE = r"D:\TagMaster"
+# 程序根目录 = 本文件所在目录，复制到任何位置都能用，不依赖固定盘符
+BASE = os.path.dirname(os.path.abspath(__file__))
 if BASE not in sys.path:
     sys.path.insert(0, BASE)
 os.chdir(BASE)
@@ -1244,7 +1245,8 @@ class App:
         wrap.pack(fill="both", expand=True)
         canvas = tk.Canvas(wrap, bg=BG, highlightthickness=0, bd=0)
         vsb = tk.Scrollbar(wrap, orient="vertical", command=canvas.yview,
-                           bg=PANEL, troughcolor=PANEL2, relief="flat", bd=0, width=10)
+                           bg="#3d4a5c", activebackground="#4d5c70",
+                           troughcolor="#202836", relief="flat", bd=0, width=12)
         canvas.configure(yscrollcommand=vsb.set)
         vsb.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
