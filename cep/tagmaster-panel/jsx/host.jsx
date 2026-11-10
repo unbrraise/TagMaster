@@ -206,6 +206,19 @@
     }
   };
 
+  // 读当前目录的标签表原文（面板解析）；没有就返回 no-csv
+  $.global.TM_readTags = function (dirPath) {
+    try {
+      var f = new File(dirPath + '/_标签数据/tags.csv');
+      if (!f.exists) return result(true, 'no-csv');
+      var text = readText(f);
+      if (text.length > 3000000) return result(false, '标签表过大（>3MB）。');
+      return '{"ok":true,"csv":' + quote(text) + '}';
+    } catch (e) {
+      return result(false, e && e.message ? e.message : String(e));
+    }
+  };
+
   // 面板每秒调用一次；没有命令时返回 idle
   $.global.TMBridge_startedAt = new Date().getTime();
   $.global.TMBridge_lastCommand = '';

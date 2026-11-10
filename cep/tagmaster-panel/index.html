@@ -43,6 +43,7 @@
     .item:hover { background: #1f2630; }
     .item.sel { background: #26303e; }
     .item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item .tagline { flex: none; max-width: 40%; color: #7f8ba0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .prev { flex: 1; display: flex; flex-direction: column; background: #000; border: 1px solid #2a323d; border-radius: 10px; min-width: 0; overflow: hidden; }
     .prev video { flex: 1; width: 100%; min-height: 0; object-fit: contain; background: #000; }
     .prev .ph { flex: 1; display: flex; align-items: center; justify-content: center; color: #5f6b7d; }
@@ -68,7 +69,7 @@
       <button id="browse">浏览…</button>
       <button id="load">载入</button>
     </div>
-    <div class="row"><input type="text" id="q" placeholder="按文件名过滤…"></div>
+    <div class="row"><input type="text" id="q" placeholder="标签搜索：少女 金发 / 夜晚 / 侧脸 …（空格分隔，全部命中）"></div>
     <div class="main">
       <div id="list"></div>
       <div class="prev">

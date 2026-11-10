@@ -4,6 +4,7 @@
   var pvEl = null, pvpEl = null, pvnEl = null;
   var files = [];          // [{name, path}]
   var picked = {};         // path -> {name, path}
+  var tagsByName = {};     // 新文件名 -> {景别, 主体, ...}（来自 _标签数据/tags.csv）
   var selPath = '';        // 当前预览的文件
   var picking = false;     // 浏览请求发出、等待 TagMaster 弹窗
 
@@ -54,7 +55,14 @@
   function filtered() {
     var q = qEl.value.trim().toLowerCase();
     if (!q) return files;
-    return files.filter(function (f) { return f.name.toLowerCase().indexOf(q) >= 0; });
+    // 空格分隔的关键词全部命中才算匹配：对 文件名 + 全部标签 做搜索
+    var kws = q.split(/\s+/).filter(Boolean);
+    return files.filter(function (f) {
+      var t = tagsByName[f.name] || {};
+      var hay = [f.name].concat(TAG_COLS.map(function (k) { return t[k] || ''; }))
+                 .join(' ').toLowerCase();
+      return kws.every(function (k) { return hay.indexOf(k) >= 0; });
+    });
   }
 
   function renderList() {
@@ -85,6 +93,13 @@
       span.onclick = function () { preview(f.path, f.name); refreshSelRows(); };
       row.appendChild(cb);
       row.appendChild(span);
+      var tl = tagline(f.name);
+      if (tl) {
+        var tagEl = document.createElement('div');
+        tagEl.className = 'tagline';
+        tagEl.textContent = tl;
+        row.appendChild(tagEl);
+      }
       frag.appendChild(row);
     });
     listEl.appendChild(frag);
@@ -121,7 +136,68 @@
       pvnEl.textContent = '未选择';
       renderList(); updateCount();
       setState('', '已载入', r.dir + '（' + files.length + ' 个视频）');
+      // 标签表跟上：有 tags.csv 就能按标签搜（少女 / 金发 / 夜晚 …）
+      evalScript('TM_readTags(' + JSON.stringify(r.dir) + ')', function (raw2) {
+        var r2 = parseResult(raw2);
+        if (r2.ok && r2.csv) {
+          tagsByName = buildTagIndex(r2.csv);
+          renderList();   // 重新渲染：列表项补上标签摘要
+        }
+      });
     });
+  }
+
+  // ---- 标签表：解析 tags.csv，建立 文件名 → 标签 索引 ----
+  function parseCsv(text) {
+    var rows = [], row = [], cur = '', inQ = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (inQ) {
+        if (c === '"') {
+          if (text.charAt(i + 1) === '"') { cur += '"'; i++; }
+          else inQ = false;
+        } else cur += c;
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === ',') { row.push(cur); cur = ''; }
+        else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+        else if (c !== '\r') cur += c;
+      }
+    }
+    if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  var TAG_COLS = ['景别', '人数', '朝向', '主体', '动作', '场景', '光线', '情绪', '风格', '色调'];
+
+  function buildTagIndex(csvText) {
+    var idx = {};
+    try {
+      var rows = parseCsv(csvText);
+      if (!rows.length) return idx;
+      var hdr = rows[0];
+      var iName = hdr.indexOf('新文件名');
+      if (iName < 0) return idx;
+      var col = {};
+      TAG_COLS.forEach(function (k) { col[k] = hdr.indexOf(k); });
+      for (var i = 1; i < rows.length; i++) {
+        var r = rows[i];
+        var name = (r[iName] || '').trim();
+        if (!name) continue;
+        var tags = {};
+        TAG_COLS.forEach(function (k) {
+          tags[k] = col[k] >= 0 ? (r[col[k]] || '').trim() : '';
+        });
+        idx[name] = tags;
+      }
+    } catch (e) {}
+    return idx;
+  }
+
+  function tagline(name) {
+    var t = tagsByName[name];
+    if (!t) return '';
+    return TAG_COLS.map(function (k) { return t[k]; }).filter(Boolean).join(' · ');
   }
 
   // ---- 浏览：走 TagMaster 代理（ExtendScript 的系统对话框不置顶，tkinter 的会置顶） ----
