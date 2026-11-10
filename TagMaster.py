@@ -20,6 +20,7 @@ import subprocess
 import traceback
 import collections
 import webbrowser
+import http.server
 
 # 程序根目录 = 本文件所在目录，复制到任何位置都能用，不依赖固定盘符
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -578,22 +579,40 @@ document.getElementById('reset').onclick = () => {
 // ---- 勾选 → 发送到 Premiere ----
 const picked = new Map();   // path -> item；重渲染后按 path 恢复选中态
 const sendBtn = document.getElementById('send');
+const PR_PORT = __PRPORT__;
 function updateSel() {
-  sendBtn.textContent = '发送到 Premiere（已选 ' + picked.size + '）';
+  sendBtn.textContent = '发送到 Premiere（已选 ' + picked.size + '）' + (tagOnline ? ' · 在线' : '');
   sendBtn.disabled = picked.size === 0;
 }
-sendBtn.onclick = () => {
+let tagOnline = false;
+async function doSend() {
   if (!picked.size) return;
   const items = [...picked.values()].map(it => ({path: it.path, bin: it.bin || ''}));
   const payload = JSON.stringify({tm_cmd: {action: 'importMany', items, createdAt: Date.now()}});
+  // 优先直发：TagMaster 在线时浏览器直接写入 PR 命令队列，不用下载文件
+  try {
+    const r = await fetch('http://127.0.0.1:' + PR_PORT + '/send', {
+      method: 'POST', body: payload,
+      headers: {'Content-Type': 'text/plain;charset=UTF-8'}  // 简单请求，不触发预检
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.msg || '发送被拒');
+    sendBtn.textContent = '已发送 ' + j.count + ' 个到 Premiere';
+    setTimeout(updateSel, 6000);
+    return;
+  } catch (e) { /* TagMaster 未开：回退为下载文件 */ }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([payload], {type: 'application/json'}));
   a.download = 'tm_cmd.json';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 8000);
-  sendBtn.textContent = '已导出 tm_cmd.json —— 拖进 TagMaster 窗口';
-  setTimeout(updateSel, 6000);
-};
+  sendBtn.textContent = 'TagMaster 未开 —— 已下载 tm_cmd.json，拖进 TagMaster';
+  setTimeout(updateSel, 8000);
+}
+sendBtn.onclick = doSend;
+fetch('http://127.0.0.1:' + PR_PORT + '/ping')
+  .then(r => r.json()).then(j => { if (j.ok) { tagOnline = true; updateSel(); } })
+  .catch(() => {});
 function match(it) {
   for (const [label, key] of Object.entries(KEYMAP)) {
     const s = state[label];
@@ -724,7 +743,7 @@ def write_gallery(rows, data_dir, clips_dir, thumbs_dir, lib_mode, log, prog, st
     data = (data.replace("<", "\\u003c").replace(">", "\\u003e")
                 .replace("&", "\\u0026"))
     # 库模式下预览页在 _标签数据 里，片段在上一级；缩略图仍在同级的 thumbs/
-    html = GALLERY_HTML.replace("__DATA__", data)
+    html = GALLERY_HTML.replace("__DATA__", data).replace("__PRPORT__", str(PR_HTTP_PORT))
     html_path = os.path.join(data_dir, "preview.html")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
@@ -1031,7 +1050,7 @@ def build_library_index(root_dir, log, prog, stage, detail, stop_event):
                 .replace("&", "\\u0026"))
     html_path = os.path.join(root_dir, "全库预览.html")
     with open(html_path, "w", encoding="utf-8") as f:
-        f.write(GALLERY_HTML.replace("__DATA__", data))
+        f.write(GALLERY_HTML.replace("__DATA__", data).replace("__PRPORT__", str(PR_HTTP_PORT)))
     log("全库预览：%s（%d 部作品，%d 个片段）" % (html_path, work_count, len(items)))
     prog(80)
 
@@ -1497,6 +1516,63 @@ VIDEO_EXT = (".mp4", ".mov", ".mkv", ".avi", ".m4v", ".ts", ".wmv", ".flv")
 # 轮询一次，读到就导入并删除文件。命令文件名和包装键刻意与原作者的
 # pr_cmd.json / pr_cmd 不同，两套面板同时装也不会互吃对方的命令。
 PR_CMD_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "TagMaster", "bin")
+PR_HTTP_PORT = 31765
+
+
+class _PRSendHandler(http.server.BaseHTTPRequestHandler):
+    """只服务两件事：GET /ping（面板/预览页探活）、POST /send（写 PR 命令）。
+    只绑 127.0.0.1，不暴露局域网；请求体上限 4 MB。"""
+
+    def _reply(self, code, obj):
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path.split("?")[0] == "/ping":
+            self._reply(200, {"ok": True, "name": "TagMaster", "ver": 1})
+        else:
+            self._reply(404, {"ok": False, "msg": "not found"})
+
+    def do_POST(self):
+        if self.path.split("?")[0] != "/send":
+            self._reply(404, {"ok": False, "msg": "not found"})
+            return
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n <= 0 or n > 4_000_000:
+                raise ValueError("请求体大小异常")
+            data = json.loads(self.rfile.read(n).decode("utf-8"))
+            cmd = data.get("tm_cmd") if isinstance(data, dict) else None
+            items = cmd.get("items") if isinstance(cmd, dict) else None
+            clean = [{"path": os.path.abspath(it["path"]), "bin": str(it.get("bin") or "")}
+                     for it in (items or []) if isinstance(it, dict) and it.get("path")]
+            if not clean:
+                raise ValueError("没有可发送的片段")
+            os.makedirs(PR_CMD_DIR, exist_ok=True)
+            with open(os.path.join(PR_CMD_DIR, "tm_cmd.json"), "w", encoding="utf-8") as f:
+                json.dump({"tm_cmd": {"action": "importMany", "items": clean,
+                                      "createdAt": int(time.time() * 1000)}},
+                          f, ensure_ascii=False)
+            self._reply(200, {"ok": True, "count": len(clean)})
+        except Exception as e:
+            self._reply(400, {"ok": False, "msg": str(e)})
+
+    def log_message(self, *a):
+        pass  # 不往控制台刷请求日志
+
+
+def start_pr_server():
+    """起本机发送服务；端口被占就返回 None（预览页会自动回退为下载文件）。"""
+    try:
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", PR_HTTP_PORT), _PRSendHandler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        return srv
+    except OSError:
+        return None
 
 
 def write_pr_command(paths, bin_name=""):
@@ -3309,6 +3385,12 @@ def main():
     root = tk.Tk()
     app = App(root)
     root.protocol("WM_DELETE_WINDOW", app._on_close)
+    # 预览页直发服务：只绑 127.0.0.1，端口被占也不影响其它功能（预览页会回退下载）
+    app.pr_srv = start_pr_server()
+    if app.pr_srv:
+        app._log("发送服务已启动：预览页可一键发送到 Premiere（端口 %d）" % PR_HTTP_PORT, "dim")
+    else:
+        app._log("发送服务端口 %d 被占用：预览页发送将回退为下载文件" % PR_HTTP_PORT, "dim")
     root.mainloop()
 
 

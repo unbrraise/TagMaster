@@ -5,32 +5,59 @@
   <title>TagMaster 素材桥</title>
   <style>
     html, body {
-      margin: 0;
-      min-height: 100%;
-      background: #12161c;
-      color: #e6ebf2;
+      margin: 0; height: 100%;
+      background: #12161c; color: #e6ebf2;
       font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
-      font-size: 12px;
-      overflow: hidden;
+      font-size: 12px; overflow: hidden;
     }
-    .wrap { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-    .title { font-size: 13px; font-weight: 600; color: #f5c451; }
-    .row { display: flex; align-items: center; gap: 8px; color: #9ca3af; line-height: 1.4; }
+    .wrap { padding: 10px; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; }
+    .title { font-size: 13px; font-weight: 600; color: #f5c451; flex: none; }
+    .row { display: flex; align-items: center; gap: 6px; flex: none; }
+    input[type=text] {
+      flex: 1; min-width: 0; background: #1d232c; border: 1px solid #2a323d;
+      color: #e6ebf2; padding: 5px 8px; border-radius: 6px; outline: none; font-size: 12px;
+    }
+    input[type=text]:focus { border-color: #f5c451; }
+    button {
+      background: #1d232c; border: 1px solid #2a323d; color: #e6ebf2;
+      padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; flex: none;
+    }
+    button:hover { border-color: #f5c451; color: #f5c451; }
+    button.primary { background: #f5c451; border-color: #f5c451; color: #1a1408; font-weight: 600; }
+    button.primary:hover { background: #ffd877; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    #list { flex: 1; overflow-y: auto; background: #171c24; border: 1px solid #2a323d; border-radius: 8px; min-height: 60px; }
+    .item { display: flex; align-items: center; gap: 7px; padding: 5px 8px; cursor: pointer; border-bottom: 1px solid #1f2630; }
+    .item:hover { background: #1d232c; }
+    .item input { flex: none; }
+    .item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rowbtns { display: flex; gap: 6px; flex: none; }
+    .stat { display: flex; align-items: center; gap: 6px; color: #9ca3af; flex: none; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex: 0 0 auto; }
     .dot.err { background: #e8735e; }
     .dot.idle { background: #64748b; }
-    #detail { color: #d1d5db; word-break: break-word; white-space: pre-wrap; }
-    .hint { color: #5f6b7d; font-size: 11px; line-height: 1.5; }
+    #detail { color: #d1d5db; word-break: break-word; }
+    .hint { color: #5f6b7d; font-size: 11px; flex: none; line-height: 1.5; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="title">TagMaster 素材桥</div>
-    <div class="row"><span id="dot" class="dot idle"></span><span id="status">启动中…</span></div>
-    <div id="detail">等待 TagMaster 发送片段。</div>
-    <div class="hint">在 TagMaster 里点「发送到 Premiere」，或把导出的
-    tm_cmd.json 拖进 TagMaster 窗口，片段会自动导入到项目的
-    「TagMaster」bin 里。</div>
+    <div class="row">
+      <input type="text" id="dir" placeholder="素材文件夹路径（素材库 / 作品文件夹）">
+      <button id="browse">浏览…</button>
+      <button id="load">载入</button>
+    </div>
+    <div class="row"><input type="text" id="q" placeholder="按文件名过滤…"></div>
+    <div id="list"></div>
+    <div class="rowbtns">
+      <button id="all">全选</button>
+      <button id="none">清空</button>
+      <button id="send" class="primary" disabled>导入选中（0）</button>
+    </div>
+    <div class="stat"><span id="dot" class="dot idle"></span><span id="status">启动中…</span></div>
+    <div id="detail">也可以在 TagMaster 里点「发送到 Premiere」，这里会自动接收。</div>
+    <div class="hint">勾选 → 「导入选中」：文件进入项目「TagMaster / 文件夹名」bin，不复制不移动。</div>
   </div>
   <script src="./js/panel.js"></script>
 </body>

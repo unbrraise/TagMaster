@@ -113,11 +113,62 @@
     return result(true, '已导入 ' + done + ' 个片段到「' + ROOT_BIN_NAME + '」bin。', done);
   }
 
+  // ---------- 面板内浏览：选文件夹 → 列视频 → 勾选导入 ----------
+
+  var VIDEO_EXTS = '|mp4|mov|avi|mkv|m4v|ts|wmv|flv|webm|';
+
+  function listResult(items, dirPath) {
+    var parts = [];
+    for (var i = 0; i < items.length; i++) {
+      parts.push('{"name":' + quote(items[i].name) + ',"path":' + quote(items[i].path) + '}');
+    }
+    return '{"ok":true,"dir":' + quote(dirPath) + ',"items":[' + parts.join(',') + ']}';
+  }
+
+  $.global.TM_selectFolder = function () {
+    try {
+      var f = Folder.selectDialog('选择素材文件夹');
+      if (!f) return result(true, 'cancel');
+      return '{"ok":true,"dir":' + quote(f.fsName) + '}';
+    } catch (e) {
+      return result(false, e && e.message ? e.message : String(e));
+    }
+  };
+
+  $.global.TM_list = function (dirPath) {
+    try {
+      var folder = Folder(dirPath);
+      if (!folder.exists) return result(false, '目录不存在：' + dirPath);
+      var files = folder.getFiles();
+      var items = [];
+      for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        if (!(f instanceof File)) continue;
+        var dot = String(f.name).lastIndexOf('.');
+        if (dot < 0) continue;
+        var ext = String(f.name).substr(dot + 1).toLowerCase();
+        if (VIDEO_EXTS.indexOf('|' + ext + '|') < 0) continue;
+        items.push({name: f.name, path: f.fsName});
+      }
+      items.sort(function (a, b) {
+        return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
+      });
+      return listResult(items, folder.fsName);
+    } catch (e) {
+      return result(false, e && e.message ? e.message : String(e));
+    }
+  };
+
+  // 面板勾选导入：复用 importMany（items: [{path, bin?}]）
+  $.global.TM_import = function (items) {
+    try { return importMany(items); }
+    catch (e) { return result(false, e && e.message ? e.message : String(e)); }
+  };
+
   // 面板每秒调用一次；没有命令时返回 idle
   $.global.TMBridge_startedAt = new Date().getTime();
   $.global.TMBridge_lastCommand = '';
-  $.global.TM_poll = function () {
-    var file = File(commandFilePath());
+  $.global.TM_poll = function () {    var file = File(commandFilePath());
     try {
       if (!file.exists) return result(true, 'idle');
       var text = readText(file);

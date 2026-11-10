@@ -91,10 +91,12 @@ TagMaster · 打标高手
 
 发送到 Premiere（先装面板，装法见下）
   把片段直接送进 PR 的项目面板，不用开文件夹翻：
-    · ③ 素材库页点「发送到 Premiere」：整个库文件夹的视频全部发送
-    · ① 打标页点「发送到 Premiere」：本批片段全部发送
-    · 预览页勾选片段 → 点「发送到 Premiere」→ 下载 tm_cmd.json
-      → 把它拖进 TagMaster 窗口，即完成发送
+    · 预览页勾选片段 → 点「发送到 Premiere」：
+      TagMaster 开着 → 直接发送，PR 面板 1 秒内收到（最顺手）；
+      TagMaster 没开 → 自动下载 tm_cmd.json，拖进 TagMaster 窗口即送达
+    · ③ 素材库页 / ① 打标页点「发送到 Premiere」：整批发送
+    · PR 面板里也能挑：面板顶部「浏览…」选素材文件夹，
+      列出视频（可按文件名过滤），勾选后「导入选中」
   片段导入到 PR 项目的「TagMaster」bin，按作品名建子文件夹。
 
 安装 PR 面板（一次性，约 1 分钟）
