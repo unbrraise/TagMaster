@@ -25,8 +25,8 @@ exit /b 1
 
 :run
 if exist "%PYW%" (
-    start "" "%PYW%" "%HERE%TagMaster.py"
+    start "" "%PYW%" "%HERE%TagMaster.py" %*
 ) else (
-    start "" "%PYX%" "%HERE%TagMaster.py"
+    start "" "%PYX%" "%HERE%TagMaster.py" %*
 )
 exit /b 0
