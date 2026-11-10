@@ -1,0 +1,29 @@
+# 环境与模型：体积大，且模型有自己的许可
+python/
+models/
+
+# 素材与输出：版权风险最高的部分
+text/
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.flac
+*.wav
+*.mp3
+*.png
+*.jpg
+*.jpeg
+
+# 模型权重
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.gguf
+
+# 缓存与日志
+__pycache__/
+*.pyc
+*.log
+启动错误.log
