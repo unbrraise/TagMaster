@@ -682,8 +682,15 @@ function match(it) {
   if (onlyPicked && !picked.has(it.path)) return false;
   for (const [label, key] of Object.entries(KEYMAP)) {
     const s = state[label];
-    if (s.size) { const toks = String(it[key] || '').split(' ');
-      if (!toks.some(t => s.has(t))) return false; }
+    if (!s.size) continue;
+    // 「作品」是可能含空格的完整名称（如 DARLING in the FRANXX），必须整串比较；
+    // 拆词会让 'DARLING in the FRANXX'.split(' ') 永远匹配不上这个完整值。
+    if (key === 'w') {
+      if (!s.has(String(it.w || ''))) return false;
+      continue;
+    }
+    const toks = String(it[key] || '').split(' ');
+    if (!toks.some(t => s.has(t))) return false;
   }
   if (q) { const hay = [it.f, it.o, it.a, it.p, it.l, it.m, it.d, it.s, it.n, it.w].join(' ').toLowerCase();
     if (!hay.includes(q)) return false; }
