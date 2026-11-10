@@ -7,6 +7,7 @@
 - **素材库模式**：打好的片段直接落进按作品分好的素材库文件夹，标签表 / 预览页收进 `_标签数据\`
 - **导入已有片段**：老素材不用重跑模型，按文件名就能建标签表、进预览页（不改名、不复制）
 - **只补标签**：对已有素材跑模型补全字段，同样不改名、不复制，标签原地写回
+- **发送到 Premiere**：CEP 面板桥，预览页勾选或页面按钮一键把片段送进 PR 项目（见⑥）
 
 一句话：**先切，再打标，然后按标签挑素材。**
 
@@ -336,6 +337,39 @@ preview.html    按标签筛选的预览页
 |---|---|---|---|
 | ④ 导入已有片段 | 每个约 0.15 秒 | 只能从文件名读 | 全库先变成可搜索的 |
 | ⑤ 只补标签 | 每个约 2.5 秒 | 模型看图，8 个字段基本都能填 | 精修近期要剪的那部 |
+
+### ⑥ 发送到 Premiere：筛好的片段直接进 PR 项目
+
+装好 PR 面板后（安装见下），不用再开文件夹拖素材：
+
+- **③ 素材库页**「发送到 Premiere」：把库文件夹的视频整批发进 PR；
+- **① 打标页**「发送到 Premiere」：把本批片段（clips\ 或库根）整批发；
+- **预览页**：勾选任意几个片段 → 点「发送到 Premiere（已选 N）」→
+  下载 `tm_cmd.json` → **把它拖进 TagMaster 窗口**，即完成发送。
+
+片段会自动导入 PR 项目的 `TagMaster` bin，并按作品名建子文件夹；
+导入的是完整文件（不切割），后续剪辑都在 PR 里自由安排。
+
+**安装 PR 面板（一次性）：**
+
+1. 开调试模式（未签名扩展必须），普通 cmd 执行：
+
+   ```cmd
+   reg add "HKCU\Software\Adobe\CSXS.9"  /v PlayerDebugMode /t REG_SZ /d 1 /f
+   reg add "HKCU\Software\Adobe\CSXS.10" /v PlayerDebugMode /t REG_SZ /d 1 /f
+   reg add "HKCU\Software\Adobe\CSXS.11" /v PlayerDebugMode /t REG_SZ /d 1 /f
+   reg add "HKCU\Software\Adobe\CSXS.12" /v PlayerDebugMode /t REG_SZ /d 1 /f
+   ```
+
+2. 把仓库里的 `cep/tagmaster-panel/` 整个文件夹拷到：
+   `%APPDATA%\Adobe\CEP\extensions\com.tagmaster.prpanel\`（extensions 不存在就新建）
+3. **完全关闭** Premiere 再打开 → 菜单 `窗口 → 扩展程序 → TagMaster 素材桥`
+4. 面板显示「监听中」即装好。之后 TagMaster 里点发送，面板 1 秒内接收导入。
+
+说明：这套面板的命令桥参考了 TuanToolKit（原作者）的文件轮询方案，命令文件
+用 `tm_cmd.json` + `tm_cmd` 键，与 TuanToolKit 的 `pr_cmd.json` 互不冲突，可同时安装。
+面板只能在你装有 Premiere 的机器上工作；TagMaster 发送端只写一个 JSON 文件，
+PR 不在线时命令会保留，下次 PR 开起来且面板运行时才被消费。
 
 ---
 

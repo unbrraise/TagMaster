@@ -82,11 +82,32 @@ TagMaster · 打标高手
 
 其它顺手功能
   · 拖入识别：把文件夹 / PR XML 直接拖进窗口，自动填好对应路径
+    还可以把预览页导出的 tm_cmd.json 拖进来 —— 会转发给 Premiere
   · 记住上次选项：路径和勾选项存在程序目录的 设置.json 里，
     开始任务或关窗时保存，下次打开自动恢复
   · 续跑：勾上后，已有完整标签的片段直接跳过，只补没打过的
   · 跑完点名失败：日志最后会写「本次失败 N 个：xxx.mp4」，
     勾「续跑」再点一次就只重试这几个
+
+发送到 Premiere（先装面板，装法见下）
+  把片段直接送进 PR 的项目面板，不用开文件夹翻：
+    · ③ 素材库页点「发送到 Premiere」：整个库文件夹的视频全部发送
+    · ① 打标页点「发送到 Premiere」：本批片段全部发送
+    · 预览页勾选片段 → 点「发送到 Premiere」→ 下载 tm_cmd.json
+      → 把它拖进 TagMaster 窗口，即完成发送
+  片段导入到 PR 项目的「TagMaster」bin，按作品名建子文件夹。
+
+安装 PR 面板（一次性，约 1 分钟）
+  1. 普通 cmd 执行（不用管理员）：
+     reg add "HKCU\Software\Adobe\CSXS.12" /v PlayerDebugMode /t REG_SZ /d 1 /f
+     （CSXS.9 / .10 / .11 也建议各跑一遍，旧版 PR 才能认）
+  2. 把程序目录的 cep\tagmaster-panel 整个文件夹拷到：
+     %APPDATA%\Adobe\CEP\extensions\com.tagmaster.prpanel\
+     （extensions 不存在就新建）
+  3. 完全关闭 Premiere 再打开 → 窗口 → 扩展程序 → TagMaster 素材桥
+  4. 面板显示「监听中」就装好了。
+  注意：这套面板要装在「装了 Premiere 的那台电脑」上；
+        命令桥参考 TuanToolKit 原作者的设计，命令文件不冲突，可同装。
 
 
 ========================================

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TagMaster 素材桥</title>
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #12161c;
+      color: #e6ebf2;
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 12px;
+      overflow: hidden;
+    }
+    .wrap { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .title { font-size: 13px; font-weight: 600; color: #f5c451; }
+    .row { display: flex; align-items: center; gap: 8px; color: #9ca3af; line-height: 1.4; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex: 0 0 auto; }
+    .dot.err { background: #e8735e; }
+    .dot.idle { background: #64748b; }
+    #detail { color: #d1d5db; word-break: break-word; white-space: pre-wrap; }
+    .hint { color: #5f6b7d; font-size: 11px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">TagMaster 素材桥</div>
+    <div class="row"><span id="dot" class="dot idle"></span><span id="status">启动中…</span></div>
+    <div id="detail">等待 TagMaster 发送片段。</div>
+    <div class="hint">在 TagMaster 里点「发送到 Premiere」，或把导出的
+    tm_cmd.json 拖进 TagMaster 窗口，片段会自动导入到项目的
+    「TagMaster」bin 里。</div>
+  </div>
+  <script src="./js/panel.js"></script>
+</body>
+</html>

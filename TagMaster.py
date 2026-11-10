@@ -498,7 +498,10 @@ h1 span{font-size:12px;color:var(--dim);font-weight:400}
 input[type=search]{background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:8px 12px;border-radius:8px;width:280px;outline:none;font-size:13px}
 input[type=search]:focus{border-color:#3a4350}
 .count{color:var(--dim);font-size:12px}.count b{color:var(--accent);font-weight:600}
-.reset{margin-left:auto;background:none;border:1px solid var(--line);color:var(--dim);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
+.send{margin-left:auto;background:none;border:1px solid var(--accent);color:var(--accent);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600}
+.send:hover{background:var(--accent);color:#1a1408}
+.send:disabled{opacity:.4;cursor:not-allowed}
+.reset{background:none;border:1px solid var(--line);color:var(--dim);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
 .reset:hover{color:var(--txt);border-color:#3a4350}
 .facets{display:flex;flex-direction:column;gap:7px;margin-top:12px}
 .frow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -520,6 +523,11 @@ main{padding:22px 28px 60px}
 .meta{padding:9px 10px 11px}
 .m1{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .m2{font-size:11.5px;color:var(--dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick{position:absolute;right:8px;bottom:8px;width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.65);background:rgba(0,0,0,.35);cursor:pointer;transition:.12s}
+.pick:hover{border-color:var(--accent)}
+.pick.on{background:var(--accent);border-color:var(--accent)}
+.pick.on::after{content:'';position:absolute;left:7px;top:4px;width:5px;height:9px;border:solid #1a1408;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.card.picked{border-color:var(--accent)}
 .empty{color:var(--dim);padding:60px 0;text-align:center;font-size:13px}
 </style></head><body>
 <header>
@@ -527,6 +535,7 @@ main{padding:22px 28px 60px}
   <div class="toolbar">
     <input type="search" id="q" placeholder="搜索关键词：少女 / 森林 / 背影 …">
     <div class="count">命中 <b id="cnt">0</b> / <span id="tot">0</span></div>
+    <button class="send" id="send" disabled>发送到 Premiere（已选 0）</button>
     <button class="reset" id="reset">清空筛选</button>
   </div>
   <div class="facets" id="facets"></div>
@@ -566,6 +575,25 @@ document.getElementById('reset').onclick = () => {
   document.querySelectorAll('.chip.on').forEach(e => e.classList.remove('on'));
   q = ''; document.getElementById('q').value = ''; render();
 };
+// ---- 勾选 → 发送到 Premiere ----
+const picked = new Map();   // path -> item；重渲染后按 path 恢复选中态
+const sendBtn = document.getElementById('send');
+function updateSel() {
+  sendBtn.textContent = '发送到 Premiere（已选 ' + picked.size + '）';
+  sendBtn.disabled = picked.size === 0;
+}
+sendBtn.onclick = () => {
+  if (!picked.size) return;
+  const items = [...picked.values()].map(it => ({path: it.path, bin: it.bin || ''}));
+  const payload = JSON.stringify({tm_cmd: {action: 'importMany', items, createdAt: Date.now()}});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([payload], {type: 'application/json'}));
+  a.download = 'tm_cmd.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+  sendBtn.textContent = '已导出 tm_cmd.json —— 拖进 TagMaster 窗口';
+  setTimeout(updateSel, 6000);
+};
 function match(it) {
   for (const [label, key] of Object.entries(KEYMAP)) {
     const s = state[label];
@@ -583,6 +611,7 @@ function render() {
   list.forEach(it => {
     // 真实链接 + URL 归一化：特殊字符文件名也能正确指向本地文件，且不受弹窗拦截
     const card = document.createElement('a'); card.className = 'card'; card.title = it.f;
+    if (picked.has(it.path)) card.classList.add('picked');
     // 路径相对当前预览页（单部页是 ../名字.mp4，全库页是 作品/名字.mp4），逐段编码
     card.href = new URL(it.f.split('/').map(encodeURIComponent).join('/'), location.href).href;
     card.target = '_blank'; card.rel = 'noopener';
@@ -596,6 +625,18 @@ function render() {
       '<div class="meta"><div class="m1">' + esc(it.o || '——') + (it.a ? ' · ' + esc(it.a) : '') + '</div>' +
       '<div class="m2">' + [it.p, it.l, it.g, it.h].filter(Boolean).map(esc).join(' / ') +
       ' <span style="opacity:.45">· ' + esc(it.id || it.f.replace('.mp4', '').split('_').pop()) + '</span></div></div>';
+    // 勾选圆点：点它只切换选中，不触发打开视频
+    const pick = document.createElement('span');
+    pick.className = 'pick' + (picked.has(it.path) ? ' on' : '');
+    pick.title = '勾选后可发送到 Premiere';
+    pick.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (picked.has(it.path)) picked.delete(it.path); else picked.set(it.path, it);
+      pick.classList.toggle('on');
+      card.classList.toggle('picked', picked.has(it.path));
+      updateSel();
+    };
+    card.appendChild(pick);
     frag.appendChild(card);
   });
   grid.innerHTML = ''; grid.appendChild(frag);
@@ -663,6 +704,8 @@ def write_gallery(rows, data_dir, clips_dir, thumbs_dir, lib_mode, log, prog, st
         # 视频路径相对当前预览页：单部作品在 _标签数据 里用 ../，普通模式在根目录用 clips/
         items.append({"f": ("../" if lib_mode else "clips/") + name,
                       "t": "thumbs/" + th, "id": str(row.get("编号", "")),
+                      "path": clip_path,
+                      "bin": os.path.basename(os.path.normpath(clips_dir)) if lib_mode else "本批片段",
                       "s": row.get("景别", ""), "n": row.get("人数", ""), "d": row.get("朝向", ""),
                       "o": row.get("主体", ""), "a": row.get("动作", ""),
                       "p": row.get("场景", ""), "l": row.get("光线", ""), "m": row.get("情绪", ""),
@@ -956,6 +999,7 @@ def build_library_index(root_dir, log, prog, stage, detail, stop_event):
             items.append({"f": w + "/" + name,
                           "t": "%s/_标签数据/thumbs/%s" % (w, th),
                           "id": str(r.get("编号", "")),
+                          "path": os.path.join(wp, name), "bin": w,
                           "s": r.get("景别", ""), "n": r.get("人数", ""),
                           "d": r.get("朝向", ""), "o": r.get("主体", ""),
                           "a": r.get("动作", ""), "p": r.get("场景", ""),
@@ -1445,6 +1489,62 @@ def run_pipeline(src, out, nframes, make_gallery, resume, lib_mode, log, prog, s
 # ---------------- Windows 原生拖放 ----------------
 # 只认这些扩展名是「视频」，用来判断拖进来的东西是不是素材
 VIDEO_EXT = (".mp4", ".mov", ".mkv", ".avi", ".m4v", ".ts", ".wmv", ".flv")
+
+
+# ---------------- 发送到 Premiere（CEP 面板桥） ----------------
+# 接口设计参考 TuanToolKit（原作者）的文件轮询桥：主程序把命令 JSON 写到
+# %APPDATA%\TagMaster\bin\tm_cmd.json，PR 里的「TagMaster 素材桥」面板每秒
+# 轮询一次，读到就导入并删除文件。命令文件名和包装键刻意与原作者的
+# pr_cmd.json / pr_cmd 不同，两套面板同时装也不会互吃对方的命令。
+PR_CMD_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "TagMaster", "bin")
+
+
+def write_pr_command(paths, bin_name=""):
+    """把一批视频路径写成 PR 桥命令，返回 (数量, 命令文件路径)。"""
+    items = []
+    for p in paths:
+        p = os.path.abspath(p)
+        if os.path.isfile(p) and p.lower().endswith(VIDEO_EXT):
+            items.append({"path": p, "bin": str(bin_name or "")})
+    if not items:
+        return 0, ""
+    os.makedirs(PR_CMD_DIR, exist_ok=True)
+    cmd_path = os.path.join(PR_CMD_DIR, "tm_cmd.json")
+    with open(cmd_path, "w", encoding="utf-8") as f:
+        json.dump({"tm_cmd": {"action": "importMany", "items": items,
+                              "createdAt": int(time.time() * 1000)}},
+                  f, ensure_ascii=False)
+    return len(items), cmd_path
+
+
+def relay_pr_command_file(src_path):
+    """把预览页导出的 tm_cmd*.json 转写进 %APPDATA%，供 PR 面板接收。
+
+    返回 (数量, 提示文本)；文件内容不合法时返回 (0, 原因)。
+    """
+    try:
+        with open(src_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        return 0, "文件读不出来：%s" % e
+    cmd = data.get("tm_cmd") if isinstance(data, dict) else None
+    items = cmd.get("items") if isinstance(cmd, dict) else None
+    if not isinstance(items, list):
+        return 0, "这不是预览页导出的发送文件（缺少 tm_cmd.items）。"
+    clean = []
+    for it in items:
+        if isinstance(it, dict) and it.get("path"):
+            clean.append({"path": os.path.abspath(it["path"]), "bin": str(it.get("bin") or "")})
+    if not clean:
+        return 0, "文件里没有片段路径。"
+    os.makedirs(PR_CMD_DIR, exist_ok=True)
+    cmd_path = os.path.join(PR_CMD_DIR, "tm_cmd.json")
+    with open(cmd_path, "w", encoding="utf-8") as f:
+        json.dump({"tm_cmd": {"action": "importMany", "items": clean,
+                              "createdAt": int(time.time() * 1000)}},
+                  f, ensure_ascii=False)
+    return len(clean), cmd_path
+
 
 
 DND_STATUS = ""
@@ -2196,6 +2296,8 @@ class App:
         self.btn_html.pack(side="left", padx=8)
         self.btn_csv = self._btn(foot, "打开标签表", self._open_csv, width=11)
         self.btn_csv.pack(side="left")
+        self.btn_sendpr = self._btn(foot, "发送到 Premiere", self._send_out_to_pr, width=14)
+        self.btn_sendpr.pack(side="left", padx=8)
         tk.Label(foot, text="不修改原片，只复制改名", bg=BG, fg=DIM,
                  font=(FONT, 9)).pack(side="right")
 
@@ -2265,6 +2367,8 @@ class App:
         self._btn(foot, "打开文件夹", self._open_libdir, width=11).pack(side="left")
         self._btn(foot, "打开预览页", self._open_html_lib, width=11).pack(side="left", padx=8)
         self._btn(foot, "打开标签表", self._open_csv_lib, width=11).pack(side="left")
+        self.btn_sendpr3 = self._btn(foot, "发送到 Premiere", self._send_lib_to_pr, width=14)
+        self.btn_sendpr3.pack(side="left", padx=8)
         self._btn(foot, "生成全库预览", self._build_lib_index, "primary", width=14).pack(side="right")
 
         lbox = tk.Frame(parent, bg=PANEL, highlightthickness=1, highlightbackground=LINE)
@@ -2310,6 +2414,37 @@ class App:
             os.startfile(d)
         else:
             messagebox.showinfo("提示", "还没有选择库文件夹")
+
+    def _send_to_pr(self, src_dir, bin_name, log):
+        """把一个文件夹里的视频整批写进 PR 桥命令，返回是否发送成功。"""
+        src_dir = os.path.normpath(src_dir)
+        if not os.path.isdir(src_dir):
+            messagebox.showinfo("提示", "文件夹不存在：%s" % src_dir)
+            return False
+        paths = [os.path.join(src_dir, f) for f in sorted(os.listdir(src_dir))
+                 if f.lower().endswith(VIDEO_EXT)]
+        if not paths:
+            messagebox.showinfo("提示", "这个文件夹里没有视频")
+            return False
+        if len(paths) > 60 and not messagebox.askyesno(
+                "发送到 Premiere",
+                "将发送 %d 个片段，PR 导入会卡一会儿。\n继续吗？" % len(paths)):
+            return False
+        n, cmd_path = write_pr_command(paths, bin_name)
+        if not n:
+            messagebox.showinfo("提示", "没有可发送的片段")
+            return False
+        log("已发送 %d 个片段到 Premiere 队列（bin：%s）" % (n, bin_name or "片段"), "ok")
+        log("PR 的「TagMaster 素材桥」面板约 1 秒内接收；没装面板见使用说明「安装 PR 面板」", "dim")
+        return True
+
+    def _send_lib_to_pr(self):
+        d = self.var_libdir.get().strip()
+        if not d or not os.path.isdir(d):
+            messagebox.showwarning("提示", "请先在上方选好库文件夹")
+            return
+        self._send_to_pr(d, os.path.basename(os.path.normpath(d)),
+                         lambda t, tag=None: self._log3(t, tag))
 
     def _open_html_lib(self):
         d = self.var_libdir.get().strip()
@@ -2375,6 +2510,16 @@ class App:
             if not p or not os.path.exists(p):
                 continue
             low = p.lower()
+
+            if os.path.isfile(p) and low.endswith(".json") and (
+                    "tm_cmd" in os.path.basename(low) or os.path.basename(low) == "pr_cmd.json"):
+                # 预览页导出的发送文件：转写进 %APPDATA%，交给 PR 面板
+                n, info = relay_pr_command_file(p)
+                if n:
+                    notes.append("已转发 %d 个片段到 Premiere 队列" % n)
+                else:
+                    notes.append("发送文件无效：%s" % info)
+                continue
 
             if os.path.isfile(p) and low.endswith(".xml"):
                 self._show_page("cut")  # 拖 XML 显然是要切片段
@@ -3141,6 +3286,18 @@ class App:
             os.startfile(p)
         else:
             messagebox.showinfo("提示", "还没有标签表")
+
+    def _send_out_to_pr(self):
+        """打标页：把输出目录里的片段（普通模式在 clips\\，库模式直接在输出目录）发给 PR。"""
+        out = self.last_out or self.var_out.get().strip()
+        if not out or not os.path.isdir(out):
+            messagebox.showwarning("提示", "还没有输出目录")
+            return
+        if os.path.basename(out.rstrip("\\/")) == "_标签数据":
+            out = os.path.dirname(out.rstrip("\\/"))
+        clips_dir = plan_dirs(out, True if self.var_libmode.get() else False)["clips"]
+        bin_name = os.path.basename(os.path.normpath(out)) if self.var_libmode.get() else "本批片段"
+        self._send_to_pr(clips_dir, bin_name, self._log)
 
 
 def main():
