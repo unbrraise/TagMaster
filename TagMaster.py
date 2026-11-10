@@ -596,7 +596,7 @@ function updateSel() {
   sendBtn.disabled = picked.size === 0;
 }
 document.getElementById('clearsel').onclick = () => {
-  picked = {};
+  picked.clear();          // picked 是 Map —— 换成 {} 会把后面的 has/set/values 全弄炸
   render(); updateSel();
 };
 document.getElementById('onlypicked').onclick = function () {
