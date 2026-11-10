@@ -3,7 +3,6 @@
 // 命令文件：%APPDATA%\TagMaster\bin\tm_cmd.json，由 TagMaster 主程序写入，
 // 面板每秒轮询一次，读到后导入并删除。支持的操作：importMany。
 (function () {
-  var ROOT_BIN_NAME = 'TagMaster';
   var DEFAULT_BIN_NAME = '片段';
 
   function commandFilePath() {
@@ -84,8 +83,8 @@
     var source = File(path);
     if (!source.exists) return '文件不存在：' + path;
     if (!app.project) return '没有打开的 Premiere 工程。';
-    var root = app.project.rootItem;
-    var target = getOrCreateBin(getOrCreateBin(root, ROOT_BIN_NAME), safeBinName(binName));
+    // 直接放进以作品名命名的 bin（项目根目录），不再套一层「TagMaster」
+    var target = getOrCreateBin(app.project.rootItem, safeBinName(binName));
     var ok = false;
     try {
       ok = app.project.importFiles([source.fsName], true, target, false);
@@ -100,17 +99,21 @@
     if (!items || !items.length) return result(false, '没有要导入的片段。', 0);
     var done = 0;
     var errors = [];
+    var bins = {};
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
       if (!item || !item.path) { errors.push('缺路径'); continue; }
-      var err = importOne(item.path, item.bin || DEFAULT_BIN_NAME);
+      var bn = safeBinName(item.bin || DEFAULT_BIN_NAME);
+      bins[bn] = true;
+      var err = importOne(item.path, bn);
       if (err) errors.push(err);
       else done++;
     }
     if (errors.length) {
       return result(done > 0, '导入 ' + done + ' 个，失败 ' + errors.length + ' 个：' + errors.slice(0, 3).join('；'), done);
     }
-    return result(true, '已导入 ' + done + ' 个片段到「' + ROOT_BIN_NAME + '」bin。', done);
+    var where = Object.keys(bins).join('、');
+    return result(true, '已导入 ' + done + ' 个片段到 bin：' + where + '。', done);
   }
 
   // ---------- 面板内浏览：选文件夹 → 列视频 → 勾选导入 ----------
@@ -220,7 +223,6 @@
   };
 
   // 面板每秒调用一次；没有命令时返回 idle
-  $.global.TMBridge_startedAt = new Date().getTime();
   $.global.TMBridge_lastCommand = '';
   $.global.TM_poll = function () {    var file = File(commandFilePath());
     try {
@@ -237,10 +239,8 @@
         try { file.remove(); } catch (e) {}
         return result(false, '不支持的命令，已忽略。');
       }
-      if (!command.createdAt || command.createdAt < $.global.TMBridge_startedAt) {
-        try { file.remove(); } catch (e) {}
-        return result(true, 'stale');
-      }
+      // 注意：不做「早于面板启动就丢弃」的判断 —— PR 没开时浏览器发来的
+      // 命令也要在打开 PR 后照常执行；文件处理完就删，不会重复导入。
       var r;
       if (command.action === 'importMany') r = importMany(command.items);
       else r = importMany([command]);

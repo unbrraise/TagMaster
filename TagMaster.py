@@ -614,12 +614,17 @@ async function doSend() {
       method: 'POST', body: payload,
       headers: {'Content-Type': 'text/plain;charset=UTF-8'}  // 简单请求，不触发预检
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.msg || '发送被拒');
-    sendBtn.textContent = '已发送 ' + j.count + ' 个到 Premiere';
-    setTimeout(updateSel, 6000);
+    const j = await r.json().catch(() => null);
+    if (j && j.ok) {
+      sendBtn.textContent = '已发送 ' + j.count + ' 个到 Premiere';
+      setTimeout(updateSel, 6000);
+      return;
+    }
+    // 服务拒收：多半是这份预览页太旧（片段数据里没有路径），重新生成一次就好
+    sendBtn.textContent = '发送失败：' + ((j && j.msg) || ('HTTP ' + r.status)) + ' —— 重新生成预览页后再试';
+    setTimeout(updateSel, 9000);
     return;
-  } catch (e) { /* TagMaster 未开：回退为下载文件 */ }
+  } catch (e) { /* 连不上 TagMaster：回退为下载文件 */ }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([payload], {type: 'application/json'}));
   a.download = 'tm_cmd.json';

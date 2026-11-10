@@ -34,19 +34,29 @@
   }
 
   // ---- 视频预览 ----
+  // 关键：换文件加载新 src 后，浏览器会把 playbackRate 重置回 defaultPlaybackRate。
+  // 所以速度要同时写 defaultPlaybackRate（跨加载持久）+ playbackRate（立即生效），
+  // 并在 loadedmetadata 时再补一次，保证每个新视频都按当前倍速播。
+  var curRate = 2;
   function setSpeed(r, btn) {
+    curRate = r;
+    pvEl.defaultPlaybackRate = r;
     pvEl.playbackRate = r;
     document.querySelectorAll('.spd').forEach(function (b) {
       b.classList.toggle('on', b === btn);
     });
   }
   function preview(path, name) {
-    if (selPath === path) return;
-    selPath = path;
     pvpEl.style.display = 'none';
     pvEl.style.display = '';
-    pvEl.src = fileUrl(path);
-    pvnEl.textContent = name;
+    if (selPath !== path) {
+      selPath = path;
+      pvEl.src = fileUrl(path);
+      pvnEl.textContent = name;
+      pvEl.playbackRate = curRate;
+    } else {
+      pvEl.currentTime = 0;  // 再点同一个文件 = 重头播
+    }
     var play = pvEl.play();
     if (play && play.catch) play.catch(function () {});
   }
@@ -277,7 +287,12 @@
       if (last) { dirEl.value = last; loadDir(last); }
     } catch (e) {}
 
-    pvEl.playbackRate = 2;  // 默认 2 倍速预览，按钮条可随时切换
+    pvEl.defaultPlaybackRate = 2;  // 默认 2 倍速预览，按钮条可随时切换
+    pvEl.playbackRate = 2;
+    // 新视频加载完再补一次速率，防止浏览器加载时把倍速打回 1
+    pvEl.addEventListener('loadedmetadata', function () {
+      pvEl.playbackRate = curRate;
+    });
     poll();
     window.setInterval(poll, 1000);
   });
