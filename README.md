@@ -19,7 +19,7 @@
 | 系统 | Windows 10 / 11 x64 |
 | 显卡 | **NVIDIA，显存 8 GB 以上**（没有 N 卡无法运行，CPU 跑不动） |
 | 磁盘 | 约 **12 GB**（运行环境 5.3 G + 模型 5.4 G） |
-| 其它 | **不需要**装 Python，**不需要**装 CUDA Toolkit，**不需要**装 ffmpeg |
+| 其它 | Python、ffmpeg **随完整程序包自带**（仓库不含，自备方法见第五节）；不用装 CUDA Toolkit（torch 自带运行时），但 **NVIDIA 显卡驱动必须装** |
 
 ---
 
