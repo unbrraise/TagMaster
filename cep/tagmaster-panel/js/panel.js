@@ -147,11 +147,29 @@
       renderList(); updateCount();
       setState('', '已载入', r.dir + '（' + files.length + ' 个视频）');
       // 标签表跟上：有 tags.csv 就能按标签搜（少女 / 金发 / 夜晚 …）
+      // 选的是总库（没有自己的 tags.csv）时，合并每个作品子目录里的标签表
       evalScript('TM_readTags(' + JSON.stringify(r.dir) + ')', function (raw2) {
         var r2 = parseResult(raw2);
         if (r2.ok && r2.csv) {
           tagsByName = buildTagIndex(r2.csv);
           renderList();   // 重新渲染：列表项补上标签摘要
+        } else if (r2.ok && (r.dirs || []).length) {
+          var pending = r.dirs.slice();
+          var mergeNext = function () {
+            if (!pending.length) { renderList(); return; }
+            var sub = pending.shift();
+            evalScript('TM_readTags(' + JSON.stringify(sub) + ')', function (raw3) {
+              var r3 = parseResult(raw3);
+              if (r3.ok && r3.csv) {
+                var idx = buildTagIndex(r3.csv);
+                for (var k in idx) {
+                  if (!(k in tagsByName)) tagsByName[k] = idx[k];  // 重名作品间以先到为准
+                }
+              }
+              mergeNext();
+            });
+          };
+          mergeNext();
         }
       });
     });

@@ -3217,12 +3217,26 @@ class App:
         d = ""
         try:
             with open(req, encoding="utf-8") as f:
-                if json.load(f).get("req"):
-                    d = filedialog.askdirectory(
-                        title="TagMaster · 选择素材文件夹（结果回传给 PR 面板）",
-                        initialdir=self.var_libdir.get() or self.var_src.get() or "") or ""
+                go = json.load(f).get("req")
         except Exception:
-            d = ""
+            go = False
+        if go:
+            try:
+                # Windows 不允许后台进程静默抢前台 —— PR 在前台时，这里弹的
+                # 对话框只会任务栏闪烁。先用「最小化再恢复」拿回前台权
+                # （系统视为用户交互），再置顶 + 抢焦点，弹完撤掉置顶。
+                r = self.root
+                r.iconify()
+                r.deiconify()
+                r.lift()
+                r.attributes("-topmost", True)
+                r.focus_force()
+                d = filedialog.askdirectory(
+                    title="TagMaster · 选择素材文件夹（结果回传给 PR 面板）",
+                    initialdir=self.var_libdir.get() or self.var_src.get() or "") or ""
+                r.attributes("-topmost", False)
+            except Exception:
+                d = ""
         try:
             with open(res, "w", encoding="utf-8") as rf:
                 json.dump({"dir": os.path.normpath(d) if d else ""}, rf, ensure_ascii=False)

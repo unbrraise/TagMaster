@@ -121,12 +121,17 @@
 
   var VIDEO_EXTS = '|mp4|mov|avi|mkv|m4v|ts|wmv|flv|webm|';
 
-  function listResult(items, dirPath) {
+  function listResult(items, dirPath, dirs) {
     var parts = [];
     for (var i = 0; i < items.length; i++) {
       parts.push('{"name":' + quote(items[i].name) + ',"path":' + quote(items[i].path) + '}');
     }
-    return '{"ok":true,"dir":' + quote(dirPath) + ',"items":[' + parts.join(',') + ']}';
+    var ds = [];
+    for (var j = 0; j < (dirs || []).length; j++) {
+      ds.push(quote(dirs[j]));
+    }
+    return '{"ok":true,"dir":' + quote(dirPath) + ',"items":[' + parts.join(',') +
+           '],"dirs":[' + ds.join(',') + ']}';
   }
 
   $.global.TM_selectFolder = function () {
@@ -143,23 +148,32 @@
     try {
       var folder = Folder(dirPath);
       if (!folder.exists) return result(false, '目录不存在：' + dirPath);
-      var files = folder.getFiles();
       var items = [];
-      for (var i = 0; i < files.length; i++) {
-        var f = files[i];
-        if (!(f instanceof File)) continue;
-        var dot = String(f.name).lastIndexOf('.');
-        if (dot < 0) continue;
-        var ext = String(f.name).substr(dot + 1).toLowerCase();
-        if (VIDEO_EXTS.indexOf('|' + ext + '|') < 0) continue;
-        var nm = String(f.name);
-        try { nm = decodeURIComponent(nm); } catch (e) {}  // ExtendScript 的 name 是 URI 编码名，解码回中文
-        items.push({name: nm, path: f.fsName});
+      var dirs = [];   // 子目录完整路径：回传给面板，用于合并各作品的 tags.csv
+      // 递归收集：选总库也能直接看到全部作品的视频（最深下钻 2 层，防超大库卡死）
+      function collect(f, depth) {
+        var entries = f.getFiles();
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i];
+          if (e instanceof Folder) {
+            dirs.push(e.fsName);
+            if (depth < 2) collect(e, depth + 1);
+            continue;
+          }
+          var dot = String(e.name).lastIndexOf('.');
+          if (dot < 0) continue;
+          var ext = String(e.name).substr(dot + 1).toLowerCase();
+          if (VIDEO_EXTS.indexOf('|' + ext + '|') < 0) continue;
+          var nm = String(e.name);
+          try { nm = decodeURIComponent(nm); } catch (err) {}  // ExtendScript 的 name 是 URI 编码名，解码回中文
+          items.push({name: nm, path: e.fsName});
+        }
       }
+      collect(folder, 0);
       items.sort(function (a, b) {
         return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
       });
-      return listResult(items, folder.fsName);
+      return listResult(items, folder.fsName, dirs);
     } catch (e) {
       return result(false, e && e.message ? e.message : String(e));
     }
