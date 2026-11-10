@@ -33,12 +33,12 @@
           <Menu>TagMaster 素材桥</Menu>
           <Geometry>
             <Size>
-              <Height>200</Height>
-              <Width>320</Width>
+              <Height>340</Height>
+              <Width>600</Width>
             </Size>
             <MinSize>
-              <Height>140</Height>
-              <Width>260</Width>
+              <Height>280</Height>
+              <Width>520</Width>
             </MinSize>
           </Geometry>
         </UI>

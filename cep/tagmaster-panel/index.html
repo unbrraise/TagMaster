@@ -26,11 +26,17 @@
     button.primary { background: #f5c451; border-color: #f5c451; color: #1a1408; font-weight: 600; }
     button.primary:hover { background: #ffd877; }
     button:disabled { opacity: .45; cursor: not-allowed; }
-    #list { flex: 1; overflow-y: auto; background: #171c24; border: 1px solid #2a323d; border-radius: 8px; min-height: 60px; }
+    .main { flex: 1; display: flex; gap: 8px; min-height: 0; }
+    #list { flex: 1.2; overflow-y: auto; background: #171c24; border: 1px solid #2a323d; border-radius: 8px; min-height: 60px; }
     .item { display: flex; align-items: center; gap: 7px; padding: 5px 8px; cursor: pointer; border-bottom: 1px solid #1f2630; }
     .item:hover { background: #1d232c; }
-    .item input { flex: none; }
+    .item.sel { background: #2a2f3a; }
+    .item input { flex: none; pointer-events: none; }
     .item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .prev { flex: 1; display: flex; flex-direction: column; background: #000; border: 1px solid #2a323d; border-radius: 8px; min-width: 0; }
+    .prev video { flex: 1; width: 100%; min-height: 0; object-fit: contain; background: #000; }
+    .prev .ph { flex: 1; display: flex; align-items: center; justify-content: center; color: #5f6b7d; }
+    .prev .pvname { padding: 5px 8px; color: #9ca3af; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid #2a323d; }
     .rowbtns { display: flex; gap: 6px; flex: none; }
     .stat { display: flex; align-items: center; gap: 6px; color: #9ca3af; flex: none; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex: 0 0 auto; }
@@ -49,7 +55,14 @@
       <button id="load">载入</button>
     </div>
     <div class="row"><input type="text" id="q" placeholder="按文件名过滤…"></div>
-    <div id="list"></div>
+    <div class="main">
+      <div id="list"></div>
+      <div class="prev">
+        <video id="pv" controls muted playsinline style="display:none"></video>
+        <div class="ph" id="pvp">点列表文件名预览视频</div>
+        <div class="pvname" id="pvn">未选择</div>
+      </div>
+    </div>
     <div class="rowbtns">
       <button id="all">全选</button>
       <button id="none">清空</button>
@@ -57,7 +70,7 @@
     </div>
     <div class="stat"><span id="dot" class="dot idle"></span><span id="status">启动中…</span></div>
     <div id="detail">也可以在 TagMaster 里点「发送到 Premiere」，这里会自动接收。</div>
-    <div class="hint">勾选 → 「导入选中」：文件进入项目「TagMaster / 文件夹名」bin，不复制不移动。</div>
+    <div class="hint">点文件名＝预览视频；勾选框＝标记要导入。「浏览」由 TagMaster 弹窗（请保持 TagMaster 开着），直接输入路径也可以。</div>
   </div>
   <script src="./js/panel.js"></script>
 </body>

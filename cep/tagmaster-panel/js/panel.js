@@ -1,8 +1,11 @@
 (function () {
   var dot = null, statusEl = null, detailEl = null;
   var dirEl = null, listEl = null, qEl = null, sendEl = null;
+  var pvEl = null, pvpEl = null, pvnEl = null;
   var files = [];          // [{name, path}]
   var picked = {};         // path -> {name, path}
+  var selPath = '';        // 当前预览的文件
+  var picking = false;     // 浏览请求发出、等待 TagMaster 弹窗
 
   function $(id) { return document.getElementById(id); }
 
@@ -25,6 +28,22 @@
     window.__adobe_cep__.evalScript(script, callback);
   }
 
+  function fileUrl(p) {
+    return 'file:///' + encodeURI(String(p).replace(/\\/g, '/')).replace(/#/g, '%23');
+  }
+
+  // ---- 视频预览 ----
+  function preview(path, name) {
+    if (selPath === path) return;
+    selPath = path;
+    pvpEl.style.display = 'none';
+    pvEl.style.display = '';
+    pvEl.src = fileUrl(path);
+    pvnEl.textContent = name;
+    var play = pvEl.play();
+    if (play && play.catch) play.catch(function () {});
+  }
+
   // ---- 列表 ----
   function filtered() {
     var q = qEl.value.trim().toLowerCase();
@@ -45,22 +64,34 @@
     }
     var frag = document.createDocumentFragment();
     list.forEach(function (f) {
-      var row = document.createElement('label');
+      var row = document.createElement('div');
       row.className = 'item';
       var cb = document.createElement('input');
       cb.type = 'checkbox'; cb.checked = !!picked[f.path];
       cb.onchange = function () {
         if (cb.checked) picked[f.path] = f; else delete picked[f.path];
+        row.classList.toggle('sel', cb.checked || selPath === f.path);
         updateCount();
       };
       var span = document.createElement('span');
       span.textContent = f.name;
-      span.title = f.path;
+      span.title = '点击预览\n' + f.path;
+      span.onclick = function () { preview(f.path, f.name); refreshSelRows(); };
       row.appendChild(cb);
       row.appendChild(span);
       frag.appendChild(row);
     });
     listEl.appendChild(frag);
+  }
+
+  function refreshSelRows() {
+    var rows = listEl.querySelectorAll('.item');
+    var list = filtered();
+    rows.forEach(function (row, i) {
+      var f = list[i];
+      if (!f) return;
+      row.classList.toggle('sel', !!picked[f.path] || selPath === f.path);
+    });
   }
 
   function updateCount() {
@@ -79,12 +110,43 @@
       try { localStorage.setItem('tm_last_dir', r.dir); } catch (e) {}
       files = r.items || [];
       picked = {};
+      selPath = '';
+      pvEl.style.display = 'none'; pvpEl.style.display = '';
+      pvnEl.textContent = '未选择';
       renderList(); updateCount();
       setState('', '已载入', r.dir + '（' + files.length + ' 个视频）');
     });
   }
 
-  // ---- 轮询：接收 TagMaster GUI 发来的命令 ----
+  // ---- 浏览：走 TagMaster 代理（ExtendScript 的系统对话框不置顶，tkinter 的会置顶） ----
+  function browse() {
+    if (picking) return;
+    picking = true;
+    evalScript('TM_requestPick()', function (raw) {
+      var r = parseResult(raw);
+      if (!r.ok) { picking = false; setState('err', '请求失败', r.msg || ''); return; }
+      setState('idle', '请在 TagMaster 弹出的窗口里选择…', '如果没弹出来，确认 TagMaster 已打开。');
+      var waited = 0;
+      var t = window.setInterval(function () {
+        waited += 400;
+        evalScript('TM_pollPick()', function (raw2) {
+          var r2 = parseResult(raw2);
+          if (r2.ok && r2.dir) {
+            window.clearInterval(t); picking = false;
+            loadDir(r2.dir);
+          } else if (r2.ok && r2.cancel) {
+            window.clearInterval(t); picking = false;
+            setState('idle', '已取消', '');
+          } else if (waited > 15000) {
+            window.clearInterval(t); picking = false;
+            setState('err', '没有响应', 'TagMaster 好像没开 —— 直接在路径框输入，或先打开 TagMaster。');
+          }
+        });
+      }, 400);
+    });
+  }
+
+  // ---- 轮询：接收 TagMaster GUI 发来的导入命令 ----
   function poll() {
     var script = '(typeof TM_poll === "function") ? TM_poll() : "{\\"ok\\":false,\\"msg\\":\\"桥脚本未加载。\\"}"';
     evalScript(script, function (raw) {
@@ -101,13 +163,9 @@
   document.addEventListener('DOMContentLoaded', function () {
     dot = $('dot'); statusEl = $('status'); detailEl = $('detail');
     dirEl = $('dir'); listEl = $('list'); qEl = $('q'); sendEl = $('send');
+    pvEl = $('pv'); pvpEl = $('pvp'); pvnEl = $('pvn');
 
-    $('browse').onclick = function () {
-      evalScript('TM_selectFolder()', function (raw) {
-        var r = parseResult(raw);
-        if (r.ok && r.dir) loadDir(r.dir);
-      });
-    };
+    $('browse').onclick = browse;
     $('load').onclick = function () { loadDir(dirEl.value); };
     dirEl.onkeydown = function (e) { if (e.key === 'Enter') loadDir(dirEl.value); };
     qEl.oninput = renderList;

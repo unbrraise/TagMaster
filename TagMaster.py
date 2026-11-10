@@ -502,6 +502,9 @@ input[type=search]:focus{border-color:#3a4350}
 .send{margin-left:auto;background:none;border:1px solid var(--accent);color:var(--accent);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600}
 .send:hover{background:var(--accent);color:#1a1408}
 .send:disabled{opacity:.4;cursor:not-allowed}
+.pickbtn{background:none;border:1px solid var(--line);color:var(--dim);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
+.pickbtn.on{background:var(--accent2);border-color:var(--accent2);color:#0c1218;font-weight:600}
+.pickbtn.on:hover{color:#0c1218}
 .reset{background:none;border:1px solid var(--line);color:var(--dim);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
 .reset:hover{color:var(--txt);border-color:#3a4350}
 .facets{display:flex;flex-direction:column;gap:7px;margin-top:12px}
@@ -537,6 +540,8 @@ main{padding:22px 28px 60px}
     <input type="search" id="q" placeholder="搜索关键词：少女 / 森林 / 背影 …">
     <div class="count">命中 <b id="cnt">0</b> / <span id="tot">0</span></div>
     <button class="send" id="send" disabled>发送到 Premiere（已选 0）</button>
+    <button class="pickbtn" id="onlypicked">只看已选</button>
+    <button class="reset" id="clearsel">取消全选</button>
     <button class="reset" id="reset">清空筛选</button>
   </div>
   <div class="facets" id="facets"></div>
@@ -585,6 +590,20 @@ function updateSel() {
   sendBtn.disabled = picked.size === 0;
 }
 let tagOnline = false;
+let onlyPicked = false;   // 只看已选：换筛选/换页也不丢勾选的卡片
+function updateSel() {
+  sendBtn.textContent = '发送到 Premiere（已选 ' + picked.size + '）' + (tagOnline ? ' · 在线' : '');
+  sendBtn.disabled = picked.size === 0;
+}
+document.getElementById('clearsel').onclick = () => {
+  picked = {};
+  render(); updateSel();
+};
+document.getElementById('onlypicked').onclick = function () {
+  onlyPicked = !onlyPicked;
+  this.classList.toggle('on', onlyPicked);
+  render();
+};
 async function doSend() {
   if (!picked.size) return;
   const items = [...picked.values()].map(it => ({path: it.path, bin: it.bin || ''}));
@@ -614,6 +633,7 @@ fetch('http://127.0.0.1:' + PR_PORT + '/ping')
   .then(r => r.json()).then(j => { if (j.ok) { tagOnline = true; updateSel(); } })
   .catch(() => {});
 function match(it) {
+  if (onlyPicked && !picked.has(it.path)) return false;
   for (const [label, key] of Object.entries(KEYMAP)) {
     const s = state[label];
     if (s.size) { const toks = String(it[key] || '').split(' ');
@@ -625,7 +645,7 @@ function match(it) {
 }
 function render() {
   const list = DATA.items.filter(match); cnt.textContent = list.length;
-  if (!list.length) { grid.innerHTML = '<div class="empty">没有符合条件的片段</div>'; return; }
+  if (!list.length) { grid.innerHTML = '<div class="empty">' + (onlyPicked && picked.size ? '已选的片段被当前筛选挡住了 —— 点「只看已选」关掉，或「取消全选」' : '没有符合条件的片段') + '</div>'; return; }
   const frag = document.createDocumentFragment();
   list.forEach(it => {
     // 真实链接 + URL 归一化：特殊字符文件名也能正确指向本地文件，且不受弹窗拦截
@@ -2372,8 +2392,6 @@ class App:
         self.btn_html.pack(side="left", padx=8)
         self.btn_csv = self._btn(foot, "打开标签表", self._open_csv, width=11)
         self.btn_csv.pack(side="left")
-        self.btn_sendpr = self._btn(foot, "发送到 Premiere", self._send_out_to_pr, width=14)
-        self.btn_sendpr.pack(side="left", padx=8)
         tk.Label(foot, text="不修改原片，只复制改名", bg=BG, fg=DIM,
                  font=(FONT, 9)).pack(side="right")
 
@@ -3185,7 +3203,33 @@ class App:
         self.imp_worker = threading.Thread(target=target, daemon=True)
         self.imp_worker.start()
 
+    def _pump_pick(self):
+        """PR 面板「浏览」代理：面板写请求文件 → 这里弹 tkinter 目录框（置顶）→ 结果回传。"""
+        req = os.path.join(PR_CMD_DIR, "tm_pick.json")
+        res = os.path.join(PR_CMD_DIR, "tm_pick_result.json")
+        if not os.path.isfile(req) or os.path.isfile(res):
+            return
+        d = ""
+        try:
+            with open(req, encoding="utf-8") as f:
+                if json.load(f).get("req"):
+                    d = filedialog.askdirectory(
+                        title="TagMaster · 选择素材文件夹（结果回传给 PR 面板）",
+                        initialdir=self.var_libdir.get() or self.var_src.get() or "") or ""
+        except Exception:
+            d = ""
+        try:
+            with open(res, "w", encoding="utf-8") as rf:
+                json.dump({"dir": os.path.normpath(d) if d else ""}, rf, ensure_ascii=False)
+        except Exception:
+            pass
+        try:
+            os.remove(req)
+        except OSError:
+            pass
+
     def _pump(self):
+        self._pump_pick()
         try:  # 消费拖放消息：窗口过程只入队，这里在主线程统一处理
             while True:
                 paths = _DROP_QUEUE.get_nowait()
@@ -3362,18 +3406,6 @@ class App:
             os.startfile(p)
         else:
             messagebox.showinfo("提示", "还没有标签表")
-
-    def _send_out_to_pr(self):
-        """打标页：把输出目录里的片段（普通模式在 clips\\，库模式直接在输出目录）发给 PR。"""
-        out = self.last_out or self.var_out.get().strip()
-        if not out or not os.path.isdir(out):
-            messagebox.showwarning("提示", "还没有输出目录")
-            return
-        if os.path.basename(out.rstrip("\\/")) == "_标签数据":
-            out = os.path.dirname(out.rstrip("\\/"))
-        clips_dir = plan_dirs(out, True if self.var_libmode.get() else False)["clips"]
-        bin_name = os.path.basename(os.path.normpath(out)) if self.var_libmode.get() else "本批片段"
-        self._send_to_pr(clips_dir, bin_name, self._log)
 
 
 def main():

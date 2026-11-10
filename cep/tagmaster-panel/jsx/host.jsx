@@ -165,6 +165,45 @@
     catch (e) { return result(false, e && e.message ? e.message : String(e)); }
   };
 
+  // ---------- 选文件夹走 TagMaster 代理 ----------
+  // ExtendScript 的 Folder.selectDialog 不置顶，容易被 PR 主窗口压住；
+  // 所以面板发请求文件，由 TagMaster 弹 tkinter 的目录框（正常置顶），结果回传。
+
+  function pickReqPath() {
+    return Folder.userData.fsName + '/TagMaster/bin/tm_pick.json';
+  }
+  function pickResultPath() {
+    return Folder.userData.fsName + '/TagMaster/bin/tm_pick_result.json';
+  }
+
+  $.global.TM_requestPick = function () {
+    try {
+      var f = new File(pickReqPath());
+      f.encoding = 'UTF-8';
+      if (!f.open('w')) return result(false, '写不了请求文件。');
+      f.write('{"req":true,"createdAt":' + new Date().getTime() + '}');
+      f.close();
+      return result(true, 'ok');
+    } catch (e) {
+      return result(false, e && e.message ? e.message : String(e));
+    }
+  };
+
+  // 面板轮询结果；拿到后就删结果文件。{"ok":true,"dir":"..."} / {"ok":true,"cancel":true}
+  $.global.TM_pollPick = function () {
+    try {
+      var f = new File(pickResultPath());
+      if (!f.exists) return result(true, 'pending');
+      var text = readText(f);
+      try { f.remove(); } catch (e) {}
+      var parsed = parseCommand(text);
+      if (parsed && parsed.dir) return '{"ok":true,"dir":' + quote(parsed.dir) + '}';
+      return result(true, 'cancel');
+    } catch (e) {
+      return result(false, e && e.message ? e.message : String(e));
+    }
+  };
+
   // 面板每秒调用一次；没有命令时返回 idle
   $.global.TMBridge_startedAt = new Date().getTime();
   $.global.TMBridge_lastCommand = '';
